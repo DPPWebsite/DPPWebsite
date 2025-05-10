@@ -1,4 +1,4 @@
-## Hi there 👋
+## Hi. This is a DPP project by 2 Master's students from Sweden studying in Jönköping University. Its a maintenance hub for the product named Notor 65 from Fagerhult.
 
 <!--
 **DPPWebsite/DPPWebsite** is a ✨ _special_ ✨ repository because its `README.md` (this file) appears on your GitHub profile.
