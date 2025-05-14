@@ -3,7 +3,6 @@ let selectedLamp = null;
 let hoveredLamp = null;
 let maintenanceHistory = JSON.parse(localStorage.getItem('maintenanceHistory')) || {};
 
-
 // Şifre yönetimi
 let correctPassword = localStorage.getItem('lampMapPassword') || "1234"; // Varsayılan şifre: 1234
 localStorage.setItem('lampMapPassword', correctPassword); // İlk şifreyi kaydet
@@ -16,7 +15,6 @@ let isLocked = false;
 // Carousel Logic and Warranty Map
 let currentSlide = 0;
 let slides = null;
-let maintenanceCanvas, warrantyCanvas;
 let isCarouselInitialized = false;
 
 // Depodaki parçaların stok miktarını tutan veri yapısı
@@ -31,6 +29,7 @@ function saveStockInventory() {
     localStorage.setItem('stockInventory', JSON.stringify(stockInventory));
 }
 
+// Levenshtein Distance for fuzzy search
 function levenshteinDistance(a, b) {
     const matrix = Array(b.length + 1).fill(null).map(() => Array(a.length + 1).fill(null));
     for (let i = 0; i <= a.length; i++) matrix[0][i] = i;
@@ -48,6 +47,7 @@ function levenshteinDistance(a, b) {
     return matrix[b.length][a.length];
 }
 
+// Password checking logic
 function checkPassword() {
     if (isLocked) {
         document.getElementById('attempts-message').style.display = 'block';
@@ -83,6 +83,7 @@ function checkPassword() {
     }
 }
 
+// Password change screen logic
 function showChangePasswordScreen() {
     document.getElementById('password-screen').style.display = 'none';
     document.getElementById('change-password-screen').style.display = 'flex';
@@ -101,173 +102,87 @@ function changePassword() {
     const newPassword = document.getElementById('new-password').value;
     const errorMessage = document.getElementById('change-error-message');
 
-    // Eski şifreyi kontrol et
     if (oldPassword !== correctPassword) {
         errorMessage.textContent = 'Incorrect old password.';
         errorMessage.style.display = 'block';
         return;
     }
 
-    // Yeni şifrenin 4 haneli bir sayı olduğunu kontrol et
     if (!/^\d{4}$/.test(newPassword)) {
         errorMessage.textContent = 'New password must be a 4-digit number.';
         errorMessage.style.display = 'block';
         return;
     }
 
-    // Şifreyi güncelle
     correctPassword = newPassword;
     localStorage.setItem('lampMapPassword', correctPassword);
     alert('Password updated successfully!');
     cancelChangePassword();
 }
 
-// Initialize lamps (4 columns, 3 lamps per column)
-function setupLamps() {
-    const lampWidth = 40;  // Dikdörtgen genişlik
-    const lampHeight = 20;  // Dikdörtgen yükseklik
-    lamps = [
-        // 1. sütun
-        { id: 1, x: 150, y: 100, width: lampWidth, height: lampHeight },
-        { id: 2, x: 150, y: 160, width: lampWidth, height: lampHeight },
-        { id: 3, x: 150, y: 220, width: lampWidth, height: lampHeight },
-        // 2. sütun
-        { id: 4, x: 250, y: 100, width: lampWidth, height: lampHeight },
-        { id: 5, x: 250, y: 160, width: lampWidth, height: lampHeight },
-        { id: 6, x: 250, y: 220, width: lampWidth, height: lampHeight },
-        // 3. sütun
-        { id: 7, x: 350, y: 100, width: lampWidth, height: lampHeight },
-        { id: 8, x: 350, y: 160, width: lampWidth, height: lampHeight },
-        { id: 9, x: 350, y: 220, width: lampWidth, height: lampHeight },
-        // 4. sütun
-        { id: 10, x: 450, y: 100, width: lampWidth, height: lampHeight },
-        { id: 11, x: 450, y: 160, width: lampWidth, height: lampHeight },
-        { id: 12, x: 450, y: 220, width: lampWidth, height: lampHeight }
-    ];
-}
+// Save a maintenance record
+function saveMaintenance() {
+    if (!selectedLamp) return;
 
-function populateDropdowns() {
-    const daySelect = document.getElementById('maintenance-day');
-    const monthSelect = document.getElementById('maintenance-month');
-    const yearSelect = document.getElementById('maintenance-year');
-    const purchaseDaySelect = document.getElementById('purchase-day');
-    const purchaseMonthSelect = document.getElementById('purchase-month');
-    const purchaseYearSelect = document.getElementById('purchase-year');
-    const warrantyEndDaySelect = document.getElementById('warranty-end-day');
-    const warrantyEndMonthSelect = document.getElementById('warranty-end-month');
-    const warrantyEndYearSelect = document.getElementById('warranty-end-year');
+    const type = document.getElementById('maintenance-type').value;
+    const part = document.getElementById('maintenance-part').value;
+    const day = document.getElementById('maintenance-day').value;
+    const month = document.getElementById('maintenance-month').value;
+    const year = document.getElementById('maintenance-year').value;
+    const comments = document.getElementById('maintenance-comments').value;
 
-    // Populate days (1-31)
-    const populateDays = (select) => {
-        for (let i = 1; i <= 31; i++) {
-            let option = document.createElement('option');
-            option.value = i;
-            option.text = i;
-            select.appendChild(option);
-        }
-    };
-    populateDays(daySelect);
-    populateDays(purchaseDaySelect);
-    populateDays(warrantyEndDaySelect);
+    let record = `${type} on: ${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+    record += `, Part: ${part}`;
+    if (comments) {
+        record += `, Comments: ${comments}`;
+    }
 
-    // Populate months (1-12)
-    const populateMonths = (select) => {
-        for (let i = 1; i <= 12; i++) {
-            let option = document.createElement('option');
-            option.value = i;
-            option.text = i;
-            select.appendChild(option);
-        }
-    };
-    populateMonths(monthSelect);
-    populateMonths(purchaseMonthSelect);
-    populateMonths(warrantyEndMonthSelect);
+    // Stok kontrolü ve güncelleme
+    if (type === 'Changed' && part !== 'None') {
+        if (stockInventory[part] > 0) {
+            stockInventory[part] -= 1;
+            saveStockInventory();
 
-    // Populate years (2000 to 2025)
-    const populateYears = (select, startYear, endYear) => {
-        for (let i = endYear; i >= startYear; i--) {
-            let option = document.createElement('option');
-            option.value = i;
-            option.text = i;
-            select.appendChild(option);
-        }
-    };
-    populateYears(yearSelect, 2000, 2025);
-    populateYears(purchaseYearSelect, 2000, 2025);
-    populateYears(warrantyEndYearSelect, 2025, 2035); // Warranty end date can be in the future
-}   
-    function saveMaintenance() {
-        console.log('saveMaintenance started');
-    
-        if (!selectedLamp) {
-            console.log('selectedLamp is null');
+            const manufacturer = document.getElementById('manufacturer').value;
+            const warrantyType = document.getElementById('warranty-type').value;
+            const purchaseDay = document.getElementById('purchase-day').value;
+            const purchaseMonth = document.getElementById('purchase-month').value;
+            const purchaseYear = document.getElementById('purchase-year').value;
+
+            record += `, Manufacturer: ${manufacturer || 'Not specified'}`;
+            record += `, Purchase Date: ${purchaseYear}-${purchaseMonth.padStart(2, '0')}-${purchaseDay.padStart(2, '0')}`;
+
+            if (warrantyType === 'duration') {
+                const warrantyYears = document.getElementById('warranty-years').value;
+                record += `, Warranty: ${warrantyYears || '0'} years`;
+            } else {
+                const warrantyEndDay = document.getElementById('warranty-end-day').value;
+                const warrantyEndMonth = document.getElementById('warranty-end-month').value;
+                const warrantyEndYear = document.getElementById('warranty-end-year').value;
+                record += `, Warranty Ends: ${warrantyEndYear}-${warrantyEndMonth.padStart(2, '0')}-${warrantyEndDay.padStart(2, '0')}`;
+            }
+        } else {
+            alert('Stokta yeterli parça yok! Lütfen depoyu kontrol edin.');
             return;
         }
-    
-        const type = document.getElementById('maintenance-type').value;
-        const part = document.getElementById('maintenance-part').value;
-        const day = document.getElementById('maintenance-day').value;
-        const month = document.getElementById('maintenance-month').value;
-        const year = document.getElementById('maintenance-year').value;
-        const comments = document.getElementById('maintenance-comments').value;
-    
-        console.log('Form values:', { type, part, day, month, year, comments });
-    
-        let record = `${type} on: ${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
-        record += `, Part: ${part}`;
-        if (comments) {
-            record += `, Comments: ${comments}`;
-        }
-    
-        // Stok kontrolü ve güncelleme
-        if (type === 'Changed' && part !== 'None') {
-            console.log('Checking stock for part:', part, 'Current stock:', stockInventory[part]);
-            if (stockInventory[part] > 0) {
-                stockInventory[part] -= 1;
-                saveStockInventory();
-                console.log('Stock updated:', stockInventory[part]);
-    
-                const manufacturer = document.getElementById('manufacturer').value;
-                const warrantyType = document.getElementById('warranty-type').value;
-                const purchaseDay = document.getElementById('purchase-day').value;
-                const purchaseMonth = document.getElementById('purchase-month').value;
-                const purchaseYear = document.getElementById('purchase-year').value;
-    
-                console.log('Replacement details:', { manufacturer, warrantyType, purchaseDay, purchaseMonth, purchaseYear });
-    
-                record += `, Manufacturer: ${manufacturer || 'Not specified'}`;
-                record += `, Purchase Date: ${purchaseYear}-${purchaseMonth.padStart(2, '0')}-${purchaseDay.padStart(2, '0')}`;
-    
-                if (warrantyType === 'duration') {
-                    const warrantyYears = document.getElementById('warranty-years').value;
-                    record += `, Warranty: ${warrantyYears || '0'} years`;
-                } else {
-                    const warrantyEndDay = document.getElementById('warranty-end-day').value;
-                    const warrantyEndMonth = document.getElementById('warranty-end-month').value;
-                    const warrantyEndYear = document.getElementById('warranty-end-year').value;
-                    record += `, Warranty Ends: ${warrantyEndYear}-${warrantyEndMonth.padStart(2, '0')}-${warrantyEndDay.padStart(2, '0')}`;
-                }
-            } else {
-                console.log('Stock is 0, cannot save');
-                alert('Stokta yeterli parça yok! Lütfen depoyu kontrol edin.');
-                return;
-            }
-        }
-    
-        console.log('Saving record:', record);
-    
-        if (!maintenanceHistory[selectedLamp]) {
-            maintenanceHistory[selectedLamp] = [];
-        }
-        maintenanceHistory[selectedLamp].push(record);
-        
-        localStorage.setItem('maintenanceHistory', JSON.stringify(maintenanceHistory));
-        
-        showHistory(selectedLamp);
-        
-        document.getElementById('maintenance-input').style.display = 'none';
-        console.log('saveMaintenance completed');
     }
+
+    // Add a timestamp to the record
+    const now = new Date();
+    const timestamp = now.toISOString().split('T')[0] + ' ' + now.toTimeString().split(' ')[0];
+    record += `, Last Updated: ${timestamp}`;
+
+    if (!maintenanceHistory[selectedLamp]) {
+        maintenanceHistory[selectedLamp] = [];
+    }
+    maintenanceHistory[selectedLamp].push(record);
+    
+    localStorage.setItem('maintenanceHistory', JSON.stringify(maintenanceHistory));
+    
+    showHistory(selectedLamp);
+    
+    document.getElementById('maintenance-input').style.display = 'none';
+}
 
 // Delete a maintenance record
 function deleteMaintenanceRecord(lampId, index) {
@@ -280,6 +195,7 @@ function deleteMaintenanceRecord(lampId, index) {
     }
 }
 
+// Show maintenance history for a lamp
 function showHistory(lampId) {
     const historyList = document.getElementById('history-list');
     const historyLamp = document.getElementById('history-lamp');
@@ -309,6 +225,7 @@ function showHistory(lampId) {
     }
 }
 
+// Show all lamp histories
 function showAllHistories() {
     const allHistoriesDiv = document.getElementById('all-histories');
     const allHistoriesList = document.getElementById('all-histories-list');
@@ -354,7 +271,7 @@ function showAllHistories() {
     allHistoriesDiv.scrollIntoView({ behavior: 'smooth' });
 }
 
-// Populate Year Filter Dropdown
+// Populate year filter dropdown
 function populateFilterYears() {
     const yearSelect = document.getElementById('filter-year');
     // Clear existing options except the "All Years" option
@@ -384,7 +301,7 @@ function populateFilterYears() {
     });
 }
 
-//Filtering the Histories
+// Filter maintenance histories
 function filterHistories() {
     const filterType = document.getElementById('filter-type').value;
     const filterYear = document.getElementById('filter-year').value;
@@ -445,7 +362,7 @@ function filterHistories() {
     }
 }
 
-//Reset History Filters 
+// Reset history filters
 function resetFilters() {
     document.getElementById('filter-type').value = 'all';
     document.getElementById('filter-year').value = 'all';
@@ -453,26 +370,21 @@ function resetFilters() {
     filterHistories();
 }
 
-//Exporting Maintenance History as a CSV File
+// Export maintenance history as a CSV file
 function exportToCSV() {
-    // Prepare CSV content
     let csvContent = "Lamp ID,Record\n"; // CSV header
 
-    // Loop through all lamps and their histories
     lamps.forEach(lamp => {
         const history = maintenanceHistory[lamp.id] || [];
         history.forEach(record => {
-            // Escape commas in the record by wrapping in quotes
             const escapedRecord = `"${record.replace(/"/g, '""')}"`;
             csvContent += `${lamp.id},${escapedRecord}\n`;
         });
     });
 
-    // Create a Blob with the CSV content
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
 
-    // Create a temporary link to download the file
     const link = document.createElement('a');
     link.setAttribute('href', url);
     link.setAttribute('download', 'lamp_maintenance_history.csv');
@@ -480,15 +392,12 @@ function exportToCSV() {
     link.click();
     document.body.removeChild(link);
 
-    // Clean up
     URL.revokeObjectURL(url);
 }
 
-//Initilazing the carousel
+// Carousel navigation functions
 function initializeCarousel() {
-    if (isCarouselInitialized) {
-        return;
-    }
+    if (isCarouselInitialized) return;
     slides = document.getElementsByClassName('carousel-slide');
     goToSlide(0);
     isCarouselInitialized = true;
@@ -496,6 +405,11 @@ function initializeCarousel() {
 
 function goToSlide(index) {
     if (!slides || slides.length === 0) return;
+    
+    // Show loading spinner
+    const loadingSpinner = document.getElementById('carousel-loading');
+    loadingSpinner.style.display = 'block';
+    
     currentSlide = index;
     if (currentSlide < 0) currentSlide = slides.length - 1;
     if (currentSlide >= slides.length) currentSlide = 0;
@@ -503,6 +417,11 @@ function goToSlide(index) {
     document.getElementById('carousel').style.transform = `translateX(${offset}%)`;
     updateDots();
     updateCanvasVisibility();
+    
+    // Hide loading spinner after transition
+    setTimeout(() => {
+        loadingSpinner.style.display = 'none';
+    }, 500);
 }
 
 function nextSlide() {
@@ -523,227 +442,22 @@ function updateDots() {
 function updateCanvasVisibility() {
     const maintenanceCanvasEl = document.getElementById('map-canvas');
     const warrantyCanvasEl = document.getElementById('map-canvas-warranty');
-    const canvas = document.querySelector('canvas');
     
-    if (!canvas) {
-        console.error('p5.js canvas not found');
-        return;
-    }
     if (!maintenanceCanvasEl || !warrantyCanvasEl) {
         console.error('Canvas container not found:', { maintenanceCanvasEl, warrantyCanvasEl });
         return;
     }
     
     if (currentSlide === 0) {
-        maintenanceCanvasEl.appendChild(canvas);
-        console.log('Canvas attached to Maintenance Map');
+        maintenanceCanvasEl.style.display = 'block';
+        warrantyCanvasEl.style.display = 'none';
     } else {
-        warrantyCanvasEl.appendChild(canvas);
-        console.log('Canvas attached to Warranty Map');
+        maintenanceCanvasEl.style.display = 'none';
+        warrantyCanvasEl.style.display = 'block';
     }
 }
 
-// p5.js Sketch for the Map
-function setup() {
-    maintenanceCanvas = createCanvas(600, 400);
-    maintenanceCanvas.parent('map-canvas');
-    warrantyCanvas = createCanvas(600, 400);
-    warrantyCanvas.parent('map-canvas-warranty');
-    
-    populateDropdowns();
-    setupLamps();
-}
-
-function draw() {
-    if (currentSlide === 0) {
-        // Maintenance Map
-        background(255);
-        drawingContext.shadowBlur = 10;
-        drawingContext.shadowColor = "rgba(0, 0, 0, 0.2)";
-        stroke(0);
-        strokeWeight(2);
-        fill(200, 200, 200);
-        rect(50, 50, 500, 300, 10);
-        drawingContext.shadowBlur = 0;
-
-        fill(255);
-        rect(150, 50, 300, 30);
-        fill(0);
-        textFont('Poppins');
-        textSize(16);
-        stroke(255);
-        strokeWeight(2);
-        textAlign(CENTER, CENTER);
-        text("Whiteboard", 300, 65);
-        noStroke();
-
-        fill(255, 165, 0);
-        rect(470, 300, 30, 50);
-        fill(0);
-        textFont('Poppins');
-        textSize(14);
-        stroke(255);
-        strokeWeight(2);
-        text("Door", 485, 325);
-        noStroke();
-
-        lamps.forEach(lamp => {
-            let lampColor = getLampColor(lamp.id);
-            if (hoveredLamp === lamp.id) {
-                drawingContext.shadowBlur = 5;
-                drawingContext.shadowColor = "rgba(0, 0, 0, 0.3)";
-                fill(255, 0, 0);
-                stroke(0);
-                strokeWeight(3);
-            } else {
-                drawingContext.shadowBlur = 3;
-                drawingContext.shadowColor = "rgba(0, 0, 0, 0.2)";
-                fill(lampColor.r, lampColor.g, lampColor.b);
-                stroke(0);
-                strokeWeight(1);
-            }
-            rect(lamp.x, lamp.y, lamp.width, lamp.height, 5);
-            drawingContext.shadowBlur = 0;
-
-            fill(0);
-            textFont('Poppins');
-            textSize(12);
-            stroke(255);
-            strokeWeight(1);
-            textAlign(CENTER, CENTER);
-            text(lamp.id, lamp.x + lamp.width / 2, lamp.y + lamp.height / 2);
-            noStroke();
-        });
-    } else if (currentSlide === 1) {
-        // Warranty Map
-        background(255);
-        drawingContext.shadowBlur = 10;
-        drawingContext.shadowColor = "rgba(0, 0, 0, 0.2)";
-        stroke(0);
-        strokeWeight(2);
-        fill(200, 200, 200);
-        rect(50, 50, 500, 300, 10);
-        drawingContext.shadowBlur = 0;
-
-        fill(255);
-        rect(150, 50, 300, 30);
-        fill(0);
-        textFont('Poppins');
-        textSize(16);
-        stroke(255);
-        strokeWeight(2);
-        textAlign(CENTER, CENTER);
-        text("Whiteboard", 300, 65);
-        noStroke();
-
-        fill(255, 165, 0);
-        rect(470, 300, 30, 50);
-        fill(0);
-        textFont('Poppins');
-        textSize(14);
-        stroke(255);
-        strokeWeight(2);
-        text("Door", 485, 325);
-        noStroke();
-
-        lamps.forEach(lamp => {
-            let lampColor = getWarrantyColor(lamp.id);
-            if (hoveredLamp === lamp.id) {
-                drawingContext.shadowBlur = 5;
-                drawingContext.shadowColor = "rgba(0, 0, 0, 0.3)";
-                fill(lampColor.r > 200 ? 150 : lampColor.r, lampColor.g > 200 ? 150 : lampColor.g, lampColor.b > 200 ? 150 : lampColor.b);
-                stroke(0);
-                strokeWeight(3);
-            } else {
-                drawingContext.shadowBlur = 3;
-                drawingContext.shadowColor = "rgba(0, 0, 0, 0.2)";
-                fill(lampColor.r, lampColor.g, lampColor.b);
-                stroke(0);
-                strokeWeight(1);
-            }
-            rect(lamp.x, lamp.y, lamp.width, lamp.height, 5);
-            drawingContext.shadowBlur = 0;
-
-            fill(0);
-            textFont('Poppins');
-            textSize(12);
-            stroke(255);
-            strokeWeight(1);
-            textAlign(CENTER, CENTER);
-            text(lamp.id, lamp.x + lamp.width / 2, lamp.y + lamp.height / 2);
-            noStroke();
-        });
-    }
-}
-
-function getLampColor(lampId) {
-    const history = maintenanceHistory[lampId] || [];
-    if (history.length === 0) {
-        return { r: 128, g: 128, b: 128 }; // Gray (no maintenance)
-    }
-
-    // Get the latest maintenance record
-    const latestRecord = history[history.length - 1];
-    const dateStr = latestRecord.match(/\d{4}-\d{2}-\d{2}/)[0];
-    const maintenanceDate = new Date(dateStr);
-    const currentDate = new Date();
-    const diffTime = Math.abs(currentDate - maintenanceDate);
-    const diffYears = diffTime / (1000 * 60 * 60 * 24 * 365); // Years difference
-
-    if (diffYears > 5) {
-        return { r: 255, g: 0, b: 0 }; // Red (5+ years)
-    } else if (diffYears <= 2) {
-        return { r: 0, g: 255, b: 0 }; // Green (within 2 years)
-    } else {
-        return { r: 255, g: 255, b: 0 }; // Yellow (2-5 years)
-    }
-}
-
-// Handle lamp clicks
-function mousePressed() {
-    for (let lamp of lamps) {
-        if (currentSlide === 0 && mouseX > lamp.x && mouseX < lamp.x + lamp.width &&
-            mouseY > lamp.y && mouseY < lamp.y + lamp.height) {
-            selectedLamp = lamp.id;
-            document.getElementById('maintenance-input').style.display = 'block';
-            document.getElementById('selected-lamp').textContent = lamp.id;
-            showHistory(lamp.id);
-            break;
-        } else if (currentSlide === 1 && mouseX > lamp.x && mouseX < lamp.x + lamp.width &&
-            mouseY > lamp.y && mouseY < lamp.y + lamp.height) {
-            selectedLamp = lamp.id;
-            document.getElementById('warranty-details').style.display = 'block';
-            document.getElementById('selected-lamp-warranty').textContent = lamp.id;
-            showWarrantyDetails(lamp.id);
-            break;
-        }
-    }
-}
-
-function mouseMoved() {
-    const tooltip = currentSlide === 0 ? document.getElementById('lamp-tooltip') : document.getElementById('lamp-tooltip-warranty');
-    hoveredLamp = null;
-
-    for (let lamp of lamps) {
-        if (mouseX > lamp.x && mouseX < lamp.x + lamp.width &&
-            mouseY > lamp.y && mouseY < lamp.y + lamp.height) {
-            hoveredLamp = lamp.id;
-            const history = maintenanceHistory[lamp.id] || [];
-            const latestRecord = history.length > 0 ? history[history.length - 1] : "No maintenance recorded";
-            const warrantyInfo = getWarrantyInfo(lamp.id);
-            tooltip.textContent = currentSlide === 0 ? `Lamp ${lamp.id}: ${latestRecord}` : `Lamp ${lamp.id}: ${warrantyInfo.tooltip}`;
-            tooltip.style.display = 'block';
-            tooltip.style.left = (mouseX + 10) + 'px';
-            tooltip.style.top = (mouseY - 30) + 'px';
-            break;
-        }
-    }
-
-    if (!hoveredLamp) {
-        tooltip.style.display = 'none';
-    }
-}
-
+// Toggle replacement details visibility and stock info
 function toggleReplacementDetails() {
     const partSelect = document.getElementById('maintenance-part');
     const typeSelect = document.getElementById('maintenance-type');
@@ -753,22 +467,18 @@ function toggleReplacementDetails() {
     const stockProgress = document.getElementById('stock-progress');
     const stockWarning = document.getElementById('stock-warning');
 
-    // "Type" "Changed" ve "Part Affected" "None" değilse Replacement Details aç
     if (typeSelect.value === 'Changed' && partSelect.value !== 'None') {
         replacementDetails.style.display = 'block';
         stockInfo.style.display = 'block';
 
-        // Seçilen parçanın stok miktarını göster
         const selectedPart = partSelect.value;
         const quantity = stockInventory[selectedPart] || 0;
         stockQuantity.textContent = `${quantity} available`;
 
-        // İlerleme çubuğunu güncelle (maksimum stok varsayılan olarak 10 kabul edelim)
         const maxStock = 10;
         const percentage = (quantity / maxStock) * 100;
         stockProgress.style.width = `${percentage}%`;
 
-        // Stok durumuna göre renk ve uyarı mesajı güncelle
         stockProgress.classList.remove('low', 'depleted');
         stockWarning.style.display = 'none';
         if (quantity === 0) {
@@ -786,6 +496,7 @@ function toggleReplacementDetails() {
     }
 }
 
+// Toggle warranty fields in the form
 function toggleWarrantyFields() {
     const warrantyType = document.getElementById('warranty-type').value;
     const warrantyDuration = document.getElementById('warranty-duration');
@@ -799,8 +510,8 @@ function toggleWarrantyFields() {
     }
 }
 
+// Reset the maintenance form
 function resetMaintenanceForm() {
-    // Reset form fields
     document.getElementById('maintenance-type').value = 'Repaired';
     document.getElementById('maintenance-part').value = 'None';
     document.getElementById('maintenance-day').selectedIndex = 0;
@@ -817,12 +528,35 @@ function resetMaintenanceForm() {
     document.getElementById('purchase-month').selectedIndex = 0;
     document.getElementById('purchase-year').selectedIndex = 0;
     
-    // Hide replacement details
     document.getElementById('replacement-details').style.display = 'none';
     document.getElementById('warranty-duration').style.display = 'block';
     document.getElementById('warranty-end-date').style.display = 'none';
 }
 
+// Get lamp color based on maintenance history
+function getLampColor(lampId) {
+    const history = maintenanceHistory[lampId] || [];
+    if (history.length === 0) {
+        return { r: 128, g: 128, b: 128 }; // Gray (no maintenance)
+    }
+
+    const latestRecord = history[history.length - 1];
+    const dateStr = latestRecord.match(/\d{4}-\d{2}-\d{2}/)[0];
+    const maintenanceDate = new Date(dateStr);
+    const currentDate = new Date();
+    const diffTime = Math.abs(currentDate - maintenanceDate);
+    const diffYears = diffTime / (1000 * 60 * 60 * 24 * 365);
+
+    if (diffYears > 5) {
+        return { r: 255, g: 0, b: 0 }; // Red (5+ years)
+    } else if (diffYears <= 2) {
+        return { r: 0, g: 255, b: 0 }; // Green (within 2 years)
+    } else {
+        return { r: 255, g: 255, b: 0 }; // Yellow (2-5 years)
+    }
+}
+
+// Get warranty color based on warranty status
 function getWarrantyColor(lampId) {
     const history = maintenanceHistory[lampId] || [];
     const currentDate = new Date('2025-05-02'); // Using the current date from your context
@@ -855,6 +589,7 @@ function getWarrantyColor(lampId) {
     }
 }
 
+// Get warranty information for a lamp
 function getWarrantyInfo(lampId) {
     const history = maintenanceHistory[lampId] || [];
     const currentDate = new Date('2025-05-02');
@@ -893,6 +628,7 @@ function getWarrantyInfo(lampId) {
     return warrantyInfo;
 }
 
+// Show warranty details for a lamp
 function showWarrantyDetails(lampId) {
     const info = getWarrantyInfo(lampId);
     document.getElementById('warranty-manufacturer').textContent = `Manufacturer: ${info.manufacturer}`;
@@ -900,3 +636,297 @@ function showWarrantyDetails(lampId) {
     document.getElementById('warranty-status').textContent = `Warranty Status: ${info.status}`;
     document.getElementById('warranty-info').textContent = info.details ? `Warranty ${info.details}` : '';
 }
+
+// p5.js Sketch for the Maintenance Map
+const maintenanceSketch = (p) => {
+    const xOffset = 250;
+    let scaleFactor = 1;
+
+    p.setup = function() {
+        const canvasWidth = window.innerWidth < 600 ? window.innerWidth - 40 : 600;
+        const canvasHeight = window.innerWidth < 600 ? (canvasWidth * 2) / 3 : 400;
+        scaleFactor = canvasWidth / 600;
+        let canvas = p.createCanvas(canvasWidth, canvasHeight);
+        canvas.parent('map-canvas');
+        p.populateDropdowns();
+        p.setupLamps();
+    };
+
+    p.setupLamps = function() {
+        const lampWidth = 40 * scaleFactor;
+        const lampHeight = 20 * scaleFactor;
+        lamps = [
+            { id: 1, x: (150 + xOffset) * scaleFactor, y: 100 * scaleFactor, width: lampWidth, height: lampHeight },
+            { id: 2, x: (150 + xOffset) * scaleFactor, y: 160 * scaleFactor, width: lampWidth, height: lampHeight },
+            { id: 3, x: (150 + xOffset) * scaleFactor, y: 220 * scaleFactor, width: lampWidth, height: lampHeight },
+            { id: 4, x: (250 + xOffset) * scaleFactor, y: 100 * scaleFactor, width: lampWidth, height: lampHeight },
+            { id: 5, x: (250 + xOffset) * scaleFactor, y: 160 * scaleFactor, width: lampWidth, height: lampHeight },
+            { id: 6, x: (250 + xOffset) * scaleFactor, y: 220 * scaleFactor, width: lampWidth, height: lampHeight },
+            { id: 7, x: (350 + xOffset) * scaleFactor, y: 100 * scaleFactor, width: lampWidth, height: lampHeight },
+            { id: 8, x: (350 + xOffset) * scaleFactor, y: 160 * scaleFactor, width: lampWidth, height: lampHeight },
+            { id: 9, x: (350 + xOffset) * scaleFactor, y: 220 * scaleFactor, width: lampWidth, height: lampHeight },
+            { id: 10, x: (450 + xOffset) * scaleFactor, y: 100 * scaleFactor, width: lampWidth, height: lampHeight },
+            { id: 11, x: (450 + xOffset) * scaleFactor, y: 160 * scaleFactor, width: lampWidth, height: lampHeight },
+            { id: 12, x: (450 + xOffset) * scaleFactor, y: 220 * scaleFactor, width: lampWidth, height: lampHeight }
+        ];
+    };
+
+    p.populateDropdowns = function() {
+        const daySelect = document.getElementById('maintenance-day');
+        const monthSelect = document.getElementById('maintenance-month');
+        const yearSelect = document.getElementById('maintenance-year');
+        const purchaseDaySelect = document.getElementById('purchase-day');
+        const purchaseMonthSelect = document.getElementById('purchase-month');
+        const purchaseYearSelect = document.getElementById('purchase-year');
+        const warrantyEndDaySelect = document.getElementById('warranty-end-day');
+        const warrantyEndMonthSelect = document.getElementById('warranty-end-month');
+        const warrantyEndYearSelect = document.getElementById('warranty-end-year');
+
+        const populateDays = (select) => {
+            for (let i = 1; i <= 31; i++) {
+                let option = document.createElement('option');
+                option.value = i;
+                option.text = i;
+                select.appendChild(option);
+            }
+        };
+        populateDays(daySelect);
+        populateDays(purchaseDaySelect);
+        populateDays(warrantyEndDaySelect);
+
+        const populateMonths = (select) => {
+            for (let i = 1; i <= 12; i++) {
+                let option = document.createElement('option');
+                option.value = i;
+                option.text = i;
+                select.appendChild(option);
+            }
+        };
+        populateMonths(monthSelect);
+        populateMonths(purchaseMonthSelect);
+        populateMonths(warrantyEndMonthSelect);
+
+        const populateYears = (select, startYear, endYear) => {
+            for (let i = endYear; i >= startYear; i--) {
+                let option = document.createElement('option');
+                option.value = i;
+                option.text = i;
+                select.appendChild(option);
+            }
+        };
+        populateYears(yearSelect, 2000, 2025);
+        populateYears(purchaseYearSelect, 2000, 2025);
+        populateYears(warrantyEndYearSelect, 2025, 2035);
+    };
+
+    p.draw = function() {
+        p.clear();
+        p.background(255);
+        p.drawingContext.shadowBlur = 10;
+        p.drawingContext.shadowColor = "rgba(0, 0, 0, 0.2)";
+        p.stroke(0);
+        p.strokeWeight(2);
+        p.fill(200, 200, 200);
+        p.rect((50 + xOffset) * scaleFactor, 50 * scaleFactor, 500 * scaleFactor, 300 * scaleFactor, 10);
+        p.drawingContext.shadowBlur = 0;
+
+        p.fill(255);
+        p.rect((150 + xOffset) * scaleFactor, 50 * scaleFactor, 300 * scaleFactor, 30 * scaleFactor);
+        p.fill(0);
+        p.textFont('Poppins');
+        p.textSize(Math.max(16 * scaleFactor, 12));
+        p.stroke(255);
+        p.strokeWeight(2);
+        p.textAlign(p.CENTER, p.CENTER);
+        p.text("Whiteboard", (300 + xOffset) * scaleFactor, (65) * scaleFactor);
+        p.noStroke();
+
+        p.fill(255, 165, 0);
+        p.rect((470 + xOffset) * scaleFactor, 300 * scaleFactor, 30 * scaleFactor, 50 * scaleFactor);
+        p.fill(0);
+        p.textFont('Poppins');
+        p.textSize(Math.max(14 * scaleFactor, 10));
+        p.stroke(255);
+        p.strokeWeight(2);
+        p.text("Door", (485 + xOffset) * scaleFactor, (325) * scaleFactor);
+        p.noStroke();
+
+        lamps.forEach(lamp => {
+            let lampColor = getLampColor(lamp.id);
+            if (hoveredLamp === lamp.id) {
+                p.drawingContext.shadowBlur = 5;
+                p.drawingContext.shadowColor = "rgba(0, 0, 0, 0.3)";
+                p.fill(255, 0, 0);
+                p.stroke(0);
+                p.strokeWeight(3);
+            } else {
+                p.drawingContext.shadowBlur = 3;
+                p.drawingContext.shadowColor = "rgba(0, 0, 0, 0.2)";
+                p.fill(lampColor.r, lampColor.g, lampColor.b);
+                p.stroke(0);
+                p.strokeWeight(1);
+            }
+            p.rect(lamp.x, lamp.y, lamp.width, lamp.height, 5 * scaleFactor);
+            p.drawingContext.shadowBlur = 0;
+
+            p.fill(0);
+            p.textFont('Poppins');
+            p.textSize(Math.max(12 * scaleFactor, 8));
+            p.stroke(255);
+            p.strokeWeight(1);
+            p.textAlign(p.CENTER, p.CENTER);
+            p.text(lamp.id, lamp.x + lamp.width / 2, lamp.y + lamp.height / 2);
+            p.noStroke();
+        });
+    };
+
+    p.mousePressed = function() {
+        for (let lamp of lamps) {
+            if (p.mouseX > lamp.x && p.mouseX < lamp.x + lamp.width &&
+                p.mouseY > lamp.y && p.mouseY < lamp.y + lamp.height) {
+                selectedLamp = lamp.id;
+                document.getElementById('maintenance-input').style.display = 'block';
+                document.getElementById('selected-lamp').textContent = lamp.id;
+                showHistory(lamp.id);
+                break;
+            }
+        }
+    };
+
+    p.mouseMoved = function() {
+        const tooltip = document.getElementById('lamp-tooltip');
+        hoveredLamp = null;
+
+        for (let lamp of lamps) {
+            if (p.mouseX > lamp.x && p.mouseX < lamp.x + lamp.width &&
+                p.mouseY > lamp.y && p.mouseY < lamp.y + lamp.height) {
+                hoveredLamp = lamp.id;
+                const history = maintenanceHistory[lamp.id] || [];
+                const latestRecord = history.length > 0 ? history[history.length - 1] : "No maintenance recorded";
+                tooltip.textContent = `Lamp ${lamp.id}: ${latestRecord}`;
+                tooltip.style.display = 'block';
+                tooltip.style.left = (p.mouseX + 10) + 'px';
+                tooltip.style.top = (p.mouseY - 30) + 'px';
+                break;
+            }
+        }
+
+        if (!hoveredLamp) {
+            tooltip.style.display = 'none';
+        }
+    };
+};
+
+// p5.js Sketch for the Warranty Map
+const warrantySketch = (p) => {
+    const xOffset = 250;
+    let scaleFactor = 1;
+
+    p.setup = function() {
+        const canvasWidth = window.innerWidth < 600 ? window.innerWidth - 40 : 600;
+        const canvasHeight = window.innerWidth < 600 ? (canvasWidth * 2) / 3 : 400;
+        scaleFactor = canvasWidth / 600;
+        let canvas = p.createCanvas(canvasWidth, canvasHeight);
+        canvas.parent('map-canvas-warranty');
+    };
+
+    p.draw = function() {
+        p.clear();
+        p.background(255);
+        p.drawingContext.shadowBlur = 10;
+        p.drawingContext.shadowColor = "rgba(0, 0, 0, 0.2)";
+        p.stroke(0);
+        p.strokeWeight(2);
+        p.fill(200, 200, 200);
+        p.rect((50 + xOffset) * scaleFactor, 50 * scaleFactor, 500 * scaleFactor, 300 * scaleFactor, 10);
+        p.drawingContext.shadowBlur = 0;
+
+        p.fill(255);
+        p.rect((150 + xOffset) * scaleFactor, 50 * scaleFactor, 300 * scaleFactor, 30 * scaleFactor);
+        p.fill(0);
+        p.textFont('Poppins');
+        p.textSize(Math.max(16 * scaleFactor, 12));
+        p.stroke(255);
+        p.strokeWeight(2);
+        p.textAlign(p.CENTER, p.CENTER);
+        p.text("Whiteboard", (300 + xOffset) * scaleFactor, (65) * scaleFactor);
+        p.noStroke();
+
+        p.fill(255, 165, 0);
+        p.rect((470 + xOffset) * scaleFactor, 300 * scaleFactor, 30 * scaleFactor, 50 * scaleFactor);
+        p.fill(0);
+        p.textFont('Poppins');
+        p.textSize(Math.max(14 * scaleFactor, 10));
+        p.stroke(255);
+        p.strokeWeight(2);
+        p.text("Door", (485 + xOffset) * scaleFactor, (325) * scaleFactor);
+        p.noStroke();
+
+        lamps.forEach(lamp => {
+            let lampColor = getWarrantyColor(lamp.id);
+            if (hoveredLamp === lamp.id) {
+                p.drawingContext.shadowBlur = 5;
+                p.drawingContext.shadowColor = "rgba(0, 0, 0, 0.3)";
+                p.fill(lampColor.r > 200 ? 150 : lampColor.r, lampColor.g > 200 ? 150 : lampColor.g, lampColor.b > 200 ? 150 : lampColor.b);
+                p.stroke(0);
+                p.strokeWeight(3);
+            } else {
+                p.drawingContext.shadowBlur = 3;
+                p.drawingContext.shadowColor = "rgba(0, 0, 0, 0.2)";
+                p.fill(lampColor.r, lampColor.g, lampColor.b);
+                p.stroke(0);
+                p.strokeWeight(1);
+            }
+            p.rect(lamp.x, lamp.y, lamp.width, lamp.height, 5 * scaleFactor);
+            p.drawingContext.shadowBlur = 0;
+
+            p.fill(0);
+            p.textFont('Poppins');
+            p.textSize(Math.max(12 * scaleFactor, 8));
+            p.stroke(255);
+            p.strokeWeight(1);
+            p.textAlign(p.CENTER, p.CENTER);
+            p.text(lamp.id, lamp.x + lamp.width / 2, lamp.y + lamp.height / 2);
+            p.noStroke();
+        });
+    };
+
+    p.mousePressed = function() {
+        for (let lamp of lamps) {
+            if (p.mouseX > lamp.x && p.mouseX < lamp.x + lamp.width &&
+                p.mouseY > lamp.y && p.mouseY < lamp.y + lamp.height) {
+                selectedLamp = lamp.id;
+                document.getElementById('warranty-details').style.display = 'block';
+                document.getElementById('selected-lamp-warranty').textContent = lamp.id;
+                showWarrantyDetails(lamp.id);
+                break;
+            }
+        }
+    };
+
+    p.mouseMoved = function() {
+        const tooltip = document.getElementById('lamp-tooltip-warranty');
+        hoveredLamp = null;
+
+        for (let lamp of lamps) {
+            if (p.mouseX > lamp.x && p.mouseX < lamp.x + lamp.width &&
+                p.mouseY > lamp.y && p.mouseY < lamp.y + lamp.height) {
+                hoveredLamp = lamp.id;
+                const warrantyInfo = getWarrantyInfo(lamp.id);
+                tooltip.textContent = `Lamp ${lamp.id}: ${warrantyInfo.tooltip}`;
+                tooltip.style.display = 'block';
+                tooltip.style.left = (p.mouseX + 10) + 'px';
+                tooltip.style.top = (p.mouseY - 30) + 'px';
+                break;
+            }
+        }
+
+        if (!hoveredLamp) {
+            tooltip.style.display = 'none';
+        }
+    };
+};
+
+// Initialize the sketches
+new p5(maintenanceSketch);
+new p5(warrantySketch);
