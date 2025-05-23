@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Notor 65 Maintenance Hub</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.2/p5.min.js"></script>
+</head>
+<body>
+    <header>
+        <h1>Notor 65 Maintenance Hub</h1>
+        <div class="search-container">
+            <input type="text" id="searchBar" placeholder="Search maintenance info..." autocomplete="off">
+            <div id="suggestions" class="suggestions"></div>
+        </div>
+        <button onclick="searchContent()">Search</button>
+        <button onclick="showFeedback()">Give Feedback</button>
+    </header>
+    <div class="container">
+        <nav>
+            <h2>Information Tree</h2>
+            <ul class="nav-list">
+                <li class="dropdown">
+                    <a href="#lighting-fixture" class="dropdown-toggle">Lighting Fixture</a>
+                    <ul class="dropdown-menu">
+                        <li><a href="#lighting-fixture-model">Product Number</a></li>
+                        <li><a href="#lighting-fixture-manufacturer">Manufacturer</a></li>
+                        <li><a href="#lighting-fixture-serienummer">Serial Number</a></li>
+                        <li><a href="#lighting-fixture-productname">Product Name</a></li>
+                    </ul>
+                </li>
+                <li class="dropdown">
+                    <a href="#connectivity" class="dropdown-toggle">Connectivity</a>
+                    <ul class="dropdown-menu">
+                        <li><a href="#connectivity-lightcontrol">Light Control</a></li>
+                        <li><a href="#connectivity-collaborative">Collaborative Systems</a></li>
+                    </ul>
+                </li>
+                <li class="dropdown">
+                    <a href="#physical-specifications" class="dropdown-toggle">Physical Specifications</a>
+                    <ul class="dropdown-menu">
+                        <li><a href="#physical-weight">Weight, kg</a></li>
+                        <li><a href="#physical-material">Material</a></li>
+                        <li><a href="#physical-dimensions">Dimensions, mm</a></li>
+                    </ul>
+                </li>
+                <li class="dropdown">
+                    <a href="#technical-specifications" class="dropdown-toggle">Technical Specifications</a>
+                    <ul class="dropdown-menu">
+                        <li><a href="#technical-protection">Protection</a></li>
+                        <li><a href="#technical-voltage">Rated Supply Voltage, V</a></li>
+                        <li><a href="#technical-frequency">Frequency, Hz</a></li>
+                        <li><a href="#technical-performance">Performance</a></li>
+                    </ul>
+                </li>
+                <li class="dropdown">
+                    <a href="#maintenance" class="dropdown-toggle">Maintenance</a>
+                    <ul class="dropdown-menu">
+                        <li><a href="#maintenance-consumable">Consumable/Replaceable Part</a></li>
+                        <li><a href="#maintenance-cleaning">Cleaning Instructions and Maintenance Schema</a></li>
+                    </ul>
+                </li>
+                <li class="dropdown">
+                    <a href="#installation-requirements" class="dropdown-toggle">Installation Requirements</a>
+                    <ul class="dropdown-menu">
+                        <li><a href="#installation-system">System Connection</a></li>
+                        <li><a href="#installation-manual">Installation Manual</a></li>
+                        <li><a href="#installation-assembly">Assembly Instructions</a></li>
+                        <li><a href="#installation-example">Installation Example Organic Response</a></li>
+                    </ul>
+                </li>
+                <li class="dropdown">
+                    <a href="#compliance-certifications" class="dropdown-toggle">Compliance Certifications</a>
+                    <ul class="dropdown-menu">
+                        <li><a href="#compliance-material">Material Declaration</a></li>
+                        <li><a href="#compliance-lca">Lifecycle Analysis (LCA)</a></li>
+                        <li><a href="#compliance-energy">Energy Class, LED Module</a></li>
+                    </ul>
+                </li>
+                <li class="dropdown">
+                    <a href="#end-of-life" class="dropdown-toggle">End of Life Information</a>
+                    <ul class="dropdown-menu">
+                        <li><a href="#end-of-life-demonting">Demonting Instructions</a></li>
+                    </ul>
+                </li>
+                <li><a href="lamp-map.html">Classroom Lamp Map</a></li>
+                <li><a href="#support">Contact Support</a></li>
+            </ul>
+        </nav>
+        <main>
+            <!-- Arama sonuçları için bir liste -->
+            <div id="search-results" style="display: none; margin-bottom: 20px;">
+                <h3>Search Results</h3>
+                <p id="search-stats"></p>
+                <p id="no-results" style="display: none; color: red;">No results found. Did you mean <span id="suggestion"></span>?</p>
+                <ul id="results-list" style="list-style: none; padding: 0;"></ul>
+            </div>
+
+            <img src="notor65.jpg" alt="Notor 65 Lighting Product">
+            <p>Welcome! Find all the maintenance info you need for the Fagerhult Notor 65 here.</p>
+
+            <section id="lighting-fixture">
+                <h2>Lighting Fixture</h2>
+                <p id="lighting-fixture-model"><strong>Product Number:</strong> 13660.0_20025 </p>
+                <p id="lighting-fixture-manufacturer"><strong>Manufacturer:</strong> Fagerhult </p>
+                <p id="lighting-fixture-serienummer"><strong>Serial Number:</strong> 41622141 </p>
+                <p id="lighting-fixture-productname"><strong>Product Name:</strong> Notor 65 Delta </p>
+            </section>
+
+            <section id="connectivity">
+                <h2>Connectivity</h2>
+                <h3 id="connectivity-lightcontrol">Light Control</h3>
+                <p>[Add details]</p>
+                <h3 id="connectivity-collaborative">Collaborative Systems</h3>
+                <p><strong>AM:</strong> [Add details]</p>
+                <p><strong>DALI Generation:</strong> [Add details]</p>
+            </section>
+
+            <section id="physical-specifications">
+                <h2>Physical Specifications</h2>
+                <p id="physical-weight"><strong>Weight, kg:</strong> 2.5 </p>
+                <p id="physical-material"><strong>Material:</strong> [Add material]</p>
+                <h3 id="physical-dimensions">Dimensions, mm</h3>
+                <p><strong>Length:</strong> [Add length]</p>
+                <p><strong>Width:</strong> [Add width]</p>
+                <p><strong>Height:</strong> [Add height]</p>
+            </section>
+
+            <section id="technical-specifications">
+                <h2>Technical Specifications</h2>
+                <h3 id="technical-protection">Protection</h3>
+                <p><strong>Surge Protection CM, kV/kA:</strong> [Add details]</p>
+                <p><strong>Surge Protection DM, kV/kA:</strong> [Add details]</p>
+                <h3 id="technical-voltage">Rated Supply Voltage, V</h3>
+                <p>220-240</p>
+                <h3 id="technical-frequency">Frequency, Hz</h3>
+                <p>0, 50, 60</p>
+                <h3 id="technical-performance">Performance</h3>
+                <h4>Luminaire Performance</h4>
+                <p><strong>Light Distribution:</strong> [Add details]</p>
+                <p><strong>Lumen Output:</strong></p>
+                <p><strong>Lumen Maintenance at 50,000h:</strong> [Add details]</p>
+                <p><strong>Lifetime LED Driver Max 10% Failure (h):</strong> [Add details]</p>
+                <h4>Energy Performance</h4>
+                <p><strong>lm/W:</strong> [Add details]</p>
+                <p><strong>Power Factor:</strong></p>
+                <p><strong>Power Factor at 100% Luminous Flux:</strong> [Add details]</p>
+                <p><strong>Power Factor 100%:</strong> [Add details]</p>
+                <p><strong>Energy Class, LED Module:</strong> [Add details]</p>
+                <h4>Electrical Performance</h4>
+                <p><strong>Start W:</strong> [Add details]</p>
+                <p><strong>Average W:</strong> [Add details]</p>
+                <p><strong>End W:</strong> [Add details]</p>
+            </section>
+
+            <section id="maintenance">
+                <h2>Maintenance</h2>
+                <h3 id="maintenance-consumable">Consumable/Replaceable Part</h3>
+                <h4>LED</h4>
+                <p><strong>Manufacturer:</strong> Aslanie</p>
+                <p><strong>Model Number:</strong> [Add details]</p>
+                <p><strong>Serial Number:</strong> [Add details]</p>
+                <p><strong>Link to Product Page:</strong> [Add link]</p>
+                <p><strong>Date of Purchase and Installation:</strong></p>
+                <p><strong>Date of Installation:</strong> [Add date]</p>
+                <p><strong>Date of Purchase:</strong> [Add date]</p>
+                <p><strong>Repair and Change History:</strong></p>
+                <p><strong>Change History:</strong> [Add details]</p>
+                <p><strong>Repair History:</strong> [Add details]</p>
+                <p><strong>Lifespan:</strong></p>
+                <p><strong>Technical Lifetime:</strong> [Add details]</p>
+                <p><strong>Reference Service Life (RSL):</strong> [Add details]</p>
+                <h3 id="maintenance-cleaning">Cleaning Instructions and Maintenance Schema</h3>
+                <div id="pdf-options-cleaning">
+                    <button onclick="showPDF('cleaning.pdf', 'Cleaning Instructions', 'pdf-viewer-cleaning')">View Cleaning Instructions</button>
+                </div>
+                <div id="pdf-viewer-cleaning"></div>
+                <p><strong>Maintenance History:</strong></p>
+            </section>
+
+            <section id="installation-requirements">
+                <h2>Installation Requirements</h2>
+                <h3 id="installation-system">System Connection</h3>
+                <p><strong>Connection DALI or Phase Pulse Control:</strong></p>
+                <div id="pdf-options">
+                    <button onclick="showPDF('DALI.pdf', 'DALI Generation and Pulse Control', 'pdf-viewer-DALI')">DALI Generation and Pulse Control</button>
+                </div>
+                <div id="pdf-viewer-DALI"></div>
+
+                <p><strong>Manual Organic Response:</strong> [Add details]</p>
+                <h3 id="installation-manual">Installation Manual</h3>
+                <div id="pdf-options">
+                    <button onclick="showPDF('installation_guide_1.pdf', 'Installation Manual', 'pdf-viewer-installation')">Installation Manual</button>
+                    <button onclick="showPDF('installation_guide_2.pdf', 'Installation Example', 'pdf-viewer-installation')">Installation Example</button>
+                </div>
+                <div id="pdf-viewer-installation"></div>
+                
+                <h3 id="installation-example">Installation Example Organic Response Continuous Unit</h3>
+                <div id="pdf-options">
+                    <button onclick="showPDF('Organic.pdf', 'Organic Response User Guide', 'pdf-viewer-organic')">Organic Response User Guide</button>
+                    <button onclick="showPDF('installation_guide_3.pdf', 'Installation Example Organic Unit', 'pdf-viewer-organic')">Installation Example Organic Unit</button>
+                </div>
+                <div id="pdf-viewer-organic"></div>
+            </section>
+
+            <section id="compliance-certifications">
+                <h2>Compliance Certifications</h2>
+                <p id="compliance-material"><strong>Material Declaration:</strong> [Add details]</p>
+                <p id="compliance-lca"><strong>Lifecycle Analysis (LCA):</strong> [Add details]</p>
+                <p id="compliance-energy"><strong>Energy Class, LED Module:</strong> [Add details]</p>
+            </section>
+
+            <section id="end-of-life">
+                <h2>End of Life Information</h2>
+                <p id="end-of-life-demonting"><strong>Demonting Instructions:</strong></p>
+                <div id="pdf-options">
+                    <button onclick="showPDF('dissamble.pdf', 'Dissambly Instructions', 'pdf-viewer-Dissamble')">Dissembly Instructions</button>
+                </div>
+                <div id="pdf-viewer-Dissamble"></div>
+            </section>
+
+            <section id="support">
+                <h2>Contact Support</h2>
+                <p>Email: support@fagerhult.com</p>
+                <p>Phone: +46 36 10 85 00</p>
+            </section>
+
+            <section id="feedback-section" style="display: none;">
+                <h2>Feedback</h2>
+                <p>How easy is this site to use?</p>
+                <select id="feedback">
+                    <option value="1">1 - Very Hard</option>
+                    <option value="2">2 - Hard</option>
+                    <option value="3">3 - Okay</option>
+                    <option value="4">4 - Easy</option>
+                    <option value="5">5 - Very Easy</option>
+                </select>
+                <button onclick="submitFeedback()">Submit</button>
+            </section>
+        </main>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>

@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Classroom Lamp Map</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.2/p5.min.js"></script>
+</head>
+<body>
+    <div id="password-screen">
+        <h2>Enter Access Code</h2>
+        <input type="password" id="access-code" maxlength="4" placeholder="Enter 4-digit code">
+        <button onclick="checkPassword()">Submit</button>
+        <button onclick="showChangePasswordScreen()">Change Password</button>
+        <p id="error-message">Incorrect code. Please try again.</p>
+        <p id="attempts-message">Too many attempts. Please wait 1 minute.</p>
+    </div>
+    <div id="change-password-screen">
+        <h2>Change Password</h2>
+        <input type="password" id="old-password" maxlength="4" placeholder="Enter old password">
+        <input type="password" id="new-password" maxlength="4" placeholder="Enter new 4-digit password">
+        <button onclick="changePassword()">Update Password</button>
+        <button onclick="cancelChangePassword()">Cancel</button>
+        <p id="change-error-message">Incorrect old password or invalid new password.</p>
+    </div>
+    <div id="lamp-map-content">
+        <button onclick="window.location.href='index.html'" class="back-button">Back to Main Page</button>
+        <div class="carousel-container">
+            <div class="carousel" id="carousel">
+                <!-- Slide 1: Maintenance Map (Your Existing Content) -->
+                <div class="carousel-slide" id="maintenance-slide">
+                    <h2>Classroom Lamp Map</h2>
+                    <p>Click on a lamp (rectangle) to view its maintenance history or add a new maintenance record.</p>
+                    <div style="position: relative;">
+                        <div id="map-canvas"></div>
+                        <div id="lamp-tooltip" class="lamp-tooltip"></div>
+                    </div>
+                    <div class="color-legend">
+                        <p><strong>Color Legend:</strong></p>
+                        <p><span class="legend-color red"></span> Red: 5+ years since last maintenance</p>
+                        <p><span class="legend-color yellow"></span> Yellow: 2-5 years since last maintenance</p>
+                        <p><span class="legend-color green"></span> Green: Last maintenance within 2 years</p>
+                        <p><span class="legend-color gray"></span> Gray: No maintenance recorded</p>
+                    </div>
+                    <button id="show-all-button" onclick="showAllHistories()" class="show-all-button">Show All Lamp Histories</button>
+                    <button id="export-csv-button" onclick="exportToCSV()" class="show-all-button">Export to CSV</button>
+                    <div id="all-histories" style="margin-top: 20px; display: none;">
+                        <h3>All Lamp Maintenance Histories</h3>
+                        <div class="filter-controls">
+                            <label for="filter-type">Filter by Type:</label>
+                            <select id="filter-type" onchange="filterHistories()">
+                                <option value="all">All</option>
+                                <option value="Repaired">Repaired</option>
+                                <option value="Changed">Changed</option>
+                            </select>
+                            <label for="filter-year">Filter by Year:</label>
+                            <select id="filter-year" onchange="filterHistories()">
+                                <option value="all">All Years</option>
+                            </select>
+                            <label for="history-search">Search Records:</label>
+                            <input type="text" id="history-search" placeholder="Search by ID or record..." oninput="filterHistories()">
+                            <button onclick="filterHistories()">Search</button>
+                            <button onclick="resetFilters()">Reset Filters</button>
+                        </div>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Lamp ID</th>
+                                    <th>Record</th>
+                                </tr>
+                            </thead>
+                            <tbody id="all-histories-list"></tbody>
+                        </table>
+                    </div>
+                    <div id="maintenance-input" style="display: none; margin-top: 20px;">
+                        <h3>Maintain Lamp <span id="selected-lamp"></span></h3>
+                        <label for="maintenance-type">Type:</label>
+                        <select id="maintenance-type" onchange="toggleReplacementDetails()">
+                            <option value="Repaired">Repaired</option>
+                            <option value="Changed">Changed</option>
+                        </select>
+                        <label for="maintenance-part">Part Affected:</label>
+                        <select id="maintenance-part" onchange="toggleReplacementDetails()">
+                            <option value="None">None</option>
+                            <option value="LED">LED</option>
+                            <option value="Driver">Driver</option>
+                            <option value="Complete">Complete Lamp Equipment</option>
+                        </select>
+                        <label for="maintenance-day">Day:</label>
+                        <select id="maintenance-day"></select>
+                        <label for="maintenance-month">Month:</label>
+                        <select id="maintenance-month"></select>
+                        <label for="maintenance-year">Year:</label>
+                        <select id="maintenance-year"></select>
+                        <label for="maintenance-comments">Comments:</label>
+                        <textarea id="maintenance-comments" placeholder="Describe the maintenance action..." rows="3" style="width: 100%;"></textarea>
+                        <div id="stock-info" style="display: none; margin-top: 10px;">
+                            <p><strong>Stock Availability:</strong> <span id="stock-quantity"></span></p>
+                            <div id="stock-progress-bar" class="progress-bar">
+                                <div id="stock-progress" class="progress-fill"></div>
+                            </div>
+                            <p id="stock-warning" style="display: none; color: red;"></p>
+                        </div>
+                        <div id="replacement-details" style="display: none; margin-top: 10px;">
+                            <h4>Replacement Details</h4>
+                            <label for="manufacturer">Manufacturer:</label>
+                            <input type="text" id="manufacturer" placeholder="Enter manufacturer name">
+                            <label for="warranty-type">Warranty Type:</label>
+                            <select id="warranty-type" onchange="toggleWarrantyFields()">
+                                <option value="duration">Duration (Years)</option>
+                                <option value="end-date">End Date</option>
+                            </select>
+                            <div id="warranty-duration" style="display: block;">
+                                <label for="warranty-years">Warranty Duration (Years):</label>
+                                <input type="number" id="warranty-years" min="0" placeholder="e.g., 2">
+                            </div>
+                            <div id="warranty-end-date" style="display: none;">
+                                <label for="warranty-end-day">End Day:</label>
+                                <select id="warranty-end-day"></select>
+                                <label for="warranty-end-month">End Month:</label>
+                                <select id="warranty-end-month"></select>
+                                <label for="warranty-end-year">End Year:</label>
+                                <select id="warranty-end-year"></select>
+                            </div>
+                            <label for="purchase-day">Purchase Date:</label>
+                            <select id="purchase-day"></select>
+                            <label for="purchase-month">Month:</label>
+                            <select id="purchase-month"></select>
+                            <label for="purchase-year">Year:</label>
+                            <select id="purchase-year"></select>
+                        </div>
+                        <button onclick="saveMaintenance()">Save Maintenance Record</button>
+                        <button onclick="resetMaintenanceForm()">Reset Form</button>
+                    </div>
+                    <div id="maintenance-history" style="margin-top: 20px;">
+                        <h3>Maintenance History for Lamp <span id="history-lamp"></span></h3>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Record</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="history-list"></tbody>
+                        </table>
+                    </div>
+                </div>
+                <!-- Slide 2: Warranty Map (New Content) -->
+                <div class="carousel-slide" id="warranty-slide">
+                    <h2>Classroom Lamp Map</h2>
+                    <p>Click on a lamp (rectangle) to view its warranty details.</p>
+                    <div style="position: relative;">
+                        <div id="map-canvas-warranty"></div>
+                        <div id="lamp-tooltip-warranty" class="lamp-tooltip"></div>
+                    </div>
+                    <div class="color-legend">
+                        <p><strong>Color Legend:</strong></p>
+                        <p><span class="legend-color green"></span> Green: Warranty Active</p>
+                        <p><span class="legend-color red"></span> Red: Warranty Expired</p>
+                        <p><span class="legend-color white"></span> White: No Warranty Information</p>
+                    </div>
+                    <div id="warranty-details-section">
+                        <h2>Warranty Details for Lamp <span id="selected-lamp-warranty"></span></h2>
+                        <div id="warranty-details" class="warranty-details" style="display: none;">
+                            <p id="warranty-manufacturer"></p>
+                            <p id="warranty-purchase-date"></p>
+                            <p id="warranty-status"></p>
+                            <p id="warranty-info"></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- Navigation Arrows -->
+            <div class="carousel-nav">
+                <button onclick="prevSlide()">&lt;</button>
+                <button onclick="nextSlide()">&gt;</button>
+            </div>
+            <!-- Navigation Dots -->
+            <div class="carousel-dots">
+                <span class="carousel-dot active" onclick="goToSlide(0)"></span>
+                <span class="carousel-dot" onclick="goToSlide(1)"></span>
+            </div>
+        </div>
+    </div>
+    <script src="lamp-map.js"></script>
+</body>
+</html>
